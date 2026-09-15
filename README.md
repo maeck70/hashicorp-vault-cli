@@ -43,21 +43,16 @@ VAULT_NAMESPACE=your-namespace-here
 
 ### 1. Direct Installation via Go (Straight from GitHub)
 
-Install the executable directly without cloning manually:
+Install the `vault` executable directly into your `$GOPATH/bin`:
 
 ```bash
-go install github.com/maeck70/hashicorp-vault-cli@latest
+go install github.com/maeck70/hashicorp-vault-cli/cmd/vault@latest
 ```
 
-This installs `hashicorp-vault-cli` into your `$GOPATH/bin` (or `$(go env GOPATH)/bin`). Ensure this directory is in your `$PATH`, then run:
+This compiles and places the binary named `vault` directly into your `$GOPATH/bin` (or `$(go env GOPATH)/bin`). Ensure this directory is in your `$PATH`, then run:
 
 ```bash
-hashicorp-vault-cli status
-```
-
-*(Optional) Create an alias or symlink for shorter invocation:*
-```bash
-alias vault-cli="hashicorp-vault-cli"
+vault status
 ```
 
 ### 2. Build from Source (Git Clone)

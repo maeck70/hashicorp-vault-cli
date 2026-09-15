@@ -6,7 +6,7 @@ all: build
 
 build:
 	@mkdir -p bin
-	go build -o $(BINARY) .
+	go build -o $(BINARY) ./cmd/vault
 
 test:
 	go test -v ./...
