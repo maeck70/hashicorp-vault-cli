@@ -253,15 +253,32 @@ For full API reference, unsealing helpers, and nested JSON traversal details, se
 
 ---
 
-## Automated Verification
+## Testing & Verification
 
-Run the included end-to-end verification script:
+### 1. Unit & Integration Tests (No External Vault Required)
+
+Run unit tests and generate coverage reports directly from the Makefile:
+
+```bash
+# Run unit tests
+make test
+
+# Run test coverage and display per-function breakdown (75.4% coverage)
+make coverage
+```
+
+Detailed coverage metrics, breakdown by function, and test suite details are available in [TESTCOVERAGE.md](TESTCOVERAGE.md).
+
+### 2. End-to-End Verification (Against Running Vault)
+
+Run the end-to-end bash verification script against a real Vault instance:
 
 ```bash
 ./test_vault.sh
 ```
 
 Tests status, prefix switching, writing, reading, listing, flag overrides, and secret deletion.
+
 
 ---
 

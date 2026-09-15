@@ -1,4 +1,4 @@
-.PHONY: all build clean run test coverage vuln vulncheck
+.PHONY: all build clean run test coverage testcoverage vuln vulncheck
 
 BINARY=bin/vault
 
@@ -15,6 +15,8 @@ coverage:
 	go test -coverprofile=coverage.out ./...
 	go tool cover -func=coverage.out
 
+testcoverage: coverage
+
 vuln:
 	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
@@ -24,4 +26,4 @@ run: build
 	./$(BINARY)
 
 clean:
-	rm -rf bin/ coverage.out
+	rm -rf bin/ coverage.out coverage.html
