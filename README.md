@@ -9,7 +9,11 @@ A fast, lightweight, and intuitive command-line interface written in Go for mana
 - **Intuitive Subcommands**: First-class command support (`read`, `write`, `delete`, `list`, `prefix`, `unseal`, `status`).
 - **Flexible Path Prefixes**: Set a default prefix in `.env` or override per command (`-prefix <folder>`).
 - **In-Terminal Prefix Management**: Inspect or change your active prefix dynamically with `vault prefix <name>`.
-- **JSON File Ingestion & Deep Querying**: Pass JSON files directly (`@file.json` or `file.json`) when writing secrets, and retrieve individual nested components with intuitive dot notation (`key.field`, `key.nested.field`, `key.items[0]`).
+- **Rich JSON & Dot Notation**:
+  - Read and write complex nested JSON objects or arrays.
+  - Query nested fields directly via dot notation (e.g., `mysql.primary.host` or array elements `items[0]`).
+  - Delete individual JSON keys in-place without destroying the parent secret.
+  - Automatic parsing of JSON files (`@path/to/file.json` or `file.json`) and raw strings.
 - **Automatic Unsealing**: Automatically unseals the Vault server on launch if `VAULT_UNSEAL_KEY` is present in `.env`.
 - **KV v2 Normalization**: Automatically translates simple keys (e.g. `captain`) into canonical Vault KV v2 paths (`secret/data/captain`).
 - **Full CLI Aliases**: Supports both natural subcommands and classic flags (`read` / `-read`, `write` / `-write`, `list` / `-list`, `delete` / `-delete`).
