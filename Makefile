@@ -1,4 +1,4 @@
-.PHONY: all build clean run test
+.PHONY: all build clean run test vuln vulncheck
 
 BINARY=bin/vault
 
@@ -10,6 +10,11 @@ build:
 
 test:
 	go test -v ./...
+
+vuln:
+	go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
+vulncheck: vuln
 
 run: build
 	./$(BINARY)
