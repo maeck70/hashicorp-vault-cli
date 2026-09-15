@@ -9,6 +9,7 @@ A fast, lightweight, and intuitive command-line interface written in Go for mana
 - **Intuitive Subcommands**: First-class command support (`read`, `write`, `delete`, `list`, `prefix`, `unseal`, `status`).
 - **Flexible Path Prefixes**: Set a default prefix in `.env` or override per command (`-prefix <folder>`).
 - **In-Terminal Prefix Management**: Inspect or change your active prefix dynamically with `vault prefix <name>`.
+- **JSON File Ingestion & Deep Querying**: Pass JSON files directly (`@file.json` or `file.json`) when writing secrets, and retrieve individual nested components with intuitive dot notation (`key.field`, `key.nested.field`, `key.items[0]`).
 - **Automatic Unsealing**: Automatically unseals the Vault server on launch if `VAULT_UNSEAL_KEY` is present in `.env`.
 - **KV v2 Normalization**: Automatically translates simple keys (e.g. `captain`) into canonical Vault KV v2 paths (`secret/data/captain`).
 - **Full CLI Aliases**: Supports both natural subcommands and classic flags (`read` / `-read`, `write` / `-write`, `list` / `-list`, `delete` / `-delete`).
@@ -100,7 +101,7 @@ Write a secret key and value. Automatically uses the active prefix:
 # Store JSON documents directly:
 ./bin/vault write mysql '{"username":"guest","password":"muysecreto","host":"192.168.10.10","port":3306}'
 
-# Or load from a JSON file:
+# Or load directly from a JSON file:
 ./bin/vault write mysql @config.json
 ./bin/vault write mysql config.json
 ```
@@ -126,7 +127,68 @@ Retrieve a secret by key, either as a whole block or by individual multi-level c
 ./bin/vault read mysql.cluster.primary.host
 ```
 
-### 4. List Keys (`list` / `ls`)
+### 4. Working with JSON Files & Nested Secrets
+You can store complex structured configuration directly from local JSON files and extract or mutate individual components without downloading or rewriting the entire payload.
+
+#### Writing from a JSON File
+Given a file `db-config.json`:
+```json
+{
+  "host": "postgres.internal",
+  "port": 5432,
+  "credentials": {
+    "username": "app_user",
+    "password": "supersecretpassword"
+  },
+  "replicas": [
+    {"host": "replica1.internal", "port": 5432},
+    {"host": "replica2.internal", "port": 5432}
+  ]
+}
+```
+
+Upload the file directly into Vault:
+```bash
+# Using @ prefix (curl-style):
+./bin/vault write db @db-config.json
+
+# Or passing the filename directly:
+./bin/vault write db db-config.json
+```
+
+#### Retrieving Individual Components (Dot Notation)
+Retrieve either the complete JSON document or drill down to specific nested components:
+
+```bash
+# Retrieve full JSON payload:
+./bin/vault read db
+
+# Retrieve a top-level component:
+./bin/vault read db.host
+# => postgres.internal
+
+# Retrieve nested object properties:
+./bin/vault read db.credentials.username
+# => app_user
+
+./bin/vault read db.credentials.password
+# => supersecretpassword
+
+# Retrieve array elements and nested fields:
+./bin/vault read db.replicas[0].host
+# => replica1.internal
+
+./bin/vault read db.replicas[1].port
+# => 5432
+```
+
+#### Deleting an Individual Component
+You can also remove an individual property within a JSON secret without affecting other fields:
+```bash
+./bin/vault delete db.credentials.password
+```
+
+### 5. List Keys (`list` / `ls`)
 List secret keys under the current prefix, a specific subpath, or group across all prefixes:
 
 ```bash
@@ -143,7 +205,7 @@ List secret keys under the current prefix, a specific subpath, or group across a
 ./bin/vault -prefix "" list
 ```
 
-### 5. Delete Secrets & Full Prefixes (`delete` / `del` / `rm` / `remove` / `delete-prefix`)
+### 6. Delete Secrets & Full Prefixes (`delete` / `del` / `rm` / `remove` / `delete-prefix`)
 Delete a single secret, a JSON component, or recursively delete an entire prefix:
 
 ```bash
@@ -163,7 +225,7 @@ Delete a single secret, a JSON component, or recursively delete an entire prefix
 ./bin/vault delete -r /
 ```
 
-### 6. Unseal Vault (`unseal`)
+### 7. Unseal Vault (`unseal`)
 Submit an unseal shard key:
 
 ```bash
@@ -174,7 +236,7 @@ Submit an unseal shard key:
 ./bin/vault unseal 3c12834f66ad4f77aad5c8bdef4ddbb5f986c4c260f0484ddd3baba986a9262e
 ```
 
-### 7. Status & Health Check (`status`)
+### 8. Status & Health Check (`status`)
 Inspect server status, seal state, version, and active token policies:
 
 ```bash
