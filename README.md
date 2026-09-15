@@ -193,3 +193,9 @@ Run the included end-to-end verification script:
 ```
 
 Tests status, prefix switching, writing, reading, listing, flag overrides, and secret deletion.
+
+---
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
