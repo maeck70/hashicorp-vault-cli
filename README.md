@@ -202,6 +202,57 @@ All flags can be placed before or after subcommands:
 
 ---
 
+## Using `vault-lib` as a Go Library (Without the CLI)
+
+You can import and use the high-level Vault client library (`pkg/vault-lib`) directly in other Go programs without the CLI:
+
+### 1. Add the Dependency
+
+```bash
+go get github.com/maeck70/hashicorp-vault-cli/pkg/vault-lib
+```
+
+### 2. Quick Integration Example
+
+```go
+package main
+
+import (
+	"fmt"
+	"time"
+
+	"github.com/maeck70/hashicorp-vault-cli/pkg/vault-lib"
+)
+
+func main() {
+	// 1. Initialize client
+	client, err := vault.NewClient(vault.Config{
+		Address: "http://127.0.0.1:8200",
+		Token:   "your-vault-token",
+		Timeout: 10 * time.Second,
+	})
+	if err != nil {
+		panic(err)
+	}
+
+	// 2. Write a secret (plain value, JSON object, or file path)
+	vault.CreateSecret(client, "myserver/database", `{"host":"10.0.0.1","port":3306}`, 10*time.Second, false)
+
+	// 3. Read back a secret or nested property with dot notation
+	var host string
+	vault.ReadSecret(client, "myserver/database.host", 10*time.Second, &host, false)
+	fmt.Printf("Database host: %s\n", host)
+
+	// 4. List keys under a prefix folder
+	keys, _ := vault.ListKeys(client, "myserver", 10*time.Second, false)
+	fmt.Printf("Keys under prefix: %v\n", keys)
+}
+```
+
+For full API reference, unsealing helpers, and nested JSON traversal details, see the [pkg/vault-lib Documentation](pkg/vault-lib/README.md).
+
+---
+
 ## Automated Verification
 
 Run the included end-to-end verification script:
