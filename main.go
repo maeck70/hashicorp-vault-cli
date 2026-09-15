@@ -88,13 +88,10 @@ func main() {
 	fs.BoolVar(versionFlag, "version", false, "Alias for -v")
 
 	fs.Usage = func() {
-		_ = godotenv.Load(*envFile)
+		envMap, _ := godotenv.Read(*envFile)
 		pfx := *prefixFlag
 		if pfx == "" {
-			pfx = os.Getenv("VAULT_PREFIX")
-			if pfx == "" {
-				pfx = os.Getenv("PREFIX")
-			}
+			pfx = resolveEnv("", envMap, "VAULT_PREFIX", "PREFIX")
 		}
 		printUsage(pfx)
 	}
@@ -138,58 +135,40 @@ func main() {
 	}
 
 	// 2. Load configuration from .env file via godotenv
-	if err := godotenv.Load(*envFile); err != nil {
-		if *envFile != ".env" || !os.IsNotExist(err) {
-			if isVerbose {
-				log.Printf("Note: Could not load env file %q: %v (falling back to environment variables)", *envFile, err)
-			}
+	envMap, err := godotenv.Read(*envFile)
+	if err != nil && (*envFile != ".env" || !os.IsNotExist(err)) {
+		if isVerbose {
+			log.Printf("Note: Could not read env file %q: %v (falling back to environment variables)", *envFile, err)
 		}
 	}
+	// Also populate process environment via godotenv so downstream packages (pkg/vault) can access them
+	_ = godotenv.Load(*envFile)
 
-	// 3. Resolve connection parameters
-	vaultAddr := *addrFlag
-	if vaultAddr == "" {
-		vaultAddr = os.Getenv("VAULT_ADDR")
-	}
-	vaultAddr = strings.TrimRight(vaultAddr, "/")
+	// 3. Resolve connection parameters using godotenv-parsed values with environment fallbacks
+	vaultAddr := strings.TrimRight(resolveEnv(*addrFlag, envMap, "VAULT_ADDR"), "/")
 	if vaultAddr == "" {
 		log.Fatal("Error: Vault address not configured. Set VAULT_ADDR in .env or provide -addr flag.")
 	}
 
-	vaultToken := *tokenFlag
-	if vaultToken == "" {
-		vaultToken = os.Getenv("VAULT_TOKEN")
-	}
+	vaultToken := resolveEnv(*tokenFlag, envMap, "VAULT_TOKEN")
 	if vaultToken == "" {
 		log.Fatal("Error: Vault token not configured. Set VAULT_TOKEN in .env or provide -token flag.")
 	}
 
-	vaultNamespace := *namespaceFlag
-	if vaultNamespace == "" {
-		vaultNamespace = os.Getenv("VAULT_NAMESPACE")
-		if vaultNamespace == "" {
-			vaultNamespace = os.Getenv("NAMESPACE")
-		}
-	}
-
-	unsealKey := *unsealKeyFlag
-	if unsealKey == "" {
-		unsealKey = os.Getenv("VAULT_UNSEAL_KEY")
-	}
+	vaultNamespace := resolveEnv(*namespaceFlag, envMap, "VAULT_NAMESPACE", "NAMESPACE")
+	unsealKey := resolveEnv(*unsealKeyFlag, envMap, "VAULT_UNSEAL_KEY")
 
 	var prefixExplicit bool
 	fs.Visit(func(f *flag.Flag) {
-		if f.Name == "prefix" {
+		switch f.Name {
+		case "prefix", "p":
 			prefixExplicit = true
 		}
 	})
 
 	prefix := *prefixFlag
 	if !prefixExplicit && prefix == "" {
-		prefix = os.Getenv("VAULT_PREFIX")
-		if prefix == "" {
-			prefix = os.Getenv("PREFIX")
-		}
+		prefix = resolveEnv("", envMap, "VAULT_PREFIX", "PREFIX")
 	}
 	prefix = strings.Trim(prefix, "/")
 
@@ -207,9 +186,10 @@ func main() {
 			fmt.Printf("✓ Default prefix updated to %q in %s\n", newPrefix, *envFile)
 			return
 		}
-		if prefix != "" {
+		switch {
+		case prefix != "":
 			fmt.Printf("Current default prefix: %s\n", prefix)
-		} else {
+		default:
 			fmt.Println("No default prefix is currently set in .env.")
 		}
 		fmt.Printf("To change it: vault prefix <new-prefix>\n")
@@ -406,6 +386,25 @@ func main() {
 	default:
 		printUsage(prefix)
 	}
+}
+
+// resolveEnv returns flagVal if non-empty, otherwise looks up candidate keys in the
+// parsed envMap (from godotenv.Read) and falls back to process environment variables (os.Getenv).
+func resolveEnv(flagVal string, envMap map[string]string, keys ...string) string {
+	if flagVal != "" {
+		return flagVal
+	}
+	for _, key := range keys {
+		if envMap != nil {
+			if val, ok := envMap[key]; ok && val != "" {
+				return val
+			}
+		}
+		if val := os.Getenv(key); val != "" {
+			return val
+		}
+	}
+	return ""
 }
 
 func printUsage(defaultPrefix string) {
