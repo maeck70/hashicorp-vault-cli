@@ -146,15 +146,7 @@ func main() {
 
 	// 3. Resolve connection parameters using godotenv-parsed values with environment fallbacks
 	vaultAddr := strings.TrimRight(resolveEnv(*addrFlag, envMap, "VAULT_ADDR"), "/")
-	if vaultAddr == "" {
-		log.Fatal("Error: Vault address not configured. Set VAULT_ADDR in .env or provide -addr flag.")
-	}
-
 	vaultToken := resolveEnv(*tokenFlag, envMap, "VAULT_TOKEN")
-	if vaultToken == "" {
-		log.Fatal("Error: Vault token not configured. Set VAULT_TOKEN in .env or provide -token flag.")
-	}
-
 	vaultNamespace := resolveEnv(*namespaceFlag, envMap, "VAULT_NAMESPACE", "NAMESPACE")
 	unsealKey := resolveEnv(*unsealKeyFlag, envMap, "VAULT_UNSEAL_KEY")
 
@@ -273,6 +265,13 @@ func main() {
 	if command == "" && len(args) == 0 {
 		fs.Usage()
 		return
+	}
+
+	if vaultAddr == "" {
+		log.Fatal("Error: Vault address not configured. Set VAULT_ADDR in .env or provide -addr flag.")
+	}
+	if vaultToken == "" {
+		log.Fatal("Error: Vault token not configured. Set VAULT_TOKEN in .env or provide -token flag.")
 	}
 
 	if isVerbose {
