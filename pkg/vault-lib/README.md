@@ -1,6 +1,6 @@
-# Package `vault`
+# Package `vault` (`pkg/vault-lib`)
 
-Package `vault` (`pkg/vault`) provides a high-level, idiomatic Go client and helper library for interacting with HashiCorp Vault. It wraps the official [HashiCorp Vault Go API](https://github.com/hashicorp/vault/api) with enhanced support for KV version 2 (KV-v2) secret engines, automatic path normalization, prefix scoping, nested JSON querying via dot notation, and server lifecycle operations (health checks and unsealing).
+Package `vault` (`pkg/vault-lib`) provides a high-level, idiomatic Go client and helper library for interacting with HashiCorp Vault. It wraps the official [HashiCorp Vault Go API](https://github.com/hashicorp/vault/api) with enhanced support for KV version 2 (KV-v2) secret engines, automatic path normalization, prefix scoping, nested JSON querying via dot notation, and server lifecycle operations (health checks and unsealing).
 
 ---
 
@@ -34,7 +34,7 @@ Package `vault` (`pkg/vault`) provides a high-level, idiomatic Go client and hel
 Import the package into your Go project:
 
 ```go
-import "github.com/maeck70/hashicorp-vault-cli/pkg/vault"
+import "github.com/maeck70/hashicorp-vault-cli/pkg/vault-lib"
 ```
 
 ---
@@ -48,7 +48,7 @@ package main
 
 import (
     "time"
-    "github.com/maeck70/hashicorp-vault-cli/pkg/vault"
+    "github.com/maeck70/hashicorp-vault-cli/pkg/vault-lib"
 )
 
 func main() {

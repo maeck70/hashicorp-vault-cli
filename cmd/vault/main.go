@@ -10,7 +10,7 @@ import (
 
 	"github.com/joho/godotenv"
 
-	"github.com/maeck70/hashicorp-vault-cli/pkg/vault"
+	"github.com/maeck70/hashicorp-vault-cli/pkg/vault-lib"
 )
 
 const VERSION = "0.5.0"
@@ -141,7 +141,7 @@ func main() {
 			log.Printf("Note: Could not read env file %q: %v (falling back to environment variables)", *envFile, err)
 		}
 	}
-	// Also populate process environment via godotenv so downstream packages (pkg/vault) can access them
+	// Also populate process environment via godotenv so downstream packages (pkg/vault-lib) can access them
 	_ = godotenv.Load(*envFile)
 
 	// 3. Resolve connection parameters using godotenv-parsed values with environment fallbacks
@@ -285,7 +285,7 @@ func main() {
 		}
 	}
 
-	// 5. Initialize Vault client via pkg/vault
+	// 5. Initialize Vault client via pkg/vault-lib
 	client, err := vault.NewClient(vault.Config{
 		Address:   vaultAddr,
 		Token:     vaultToken,
