@@ -13,14 +13,15 @@ import (
 )
 
 // parseJSONValue checks if the provided string is a JSON file reference or a valid JSON literal.
-func parseJSONValue(value string) (interface{}, bool) {
+func parseJSONValue(value string) (any, bool) {
 	trimmed := strings.TrimSpace(value)
-	if strings.HasPrefix(trimmed, "@") {
+	switch {
+	case strings.HasPrefix(trimmed, "@"):
 		filePath := strings.TrimPrefix(trimmed, "@")
 		if data, err := os.ReadFile(filePath); err == nil {
 			trimmed = strings.TrimSpace(string(data))
 		}
-	} else if !strings.HasPrefix(trimmed, "{") && !strings.HasPrefix(trimmed, "[") {
+	case !strings.HasPrefix(trimmed, "{") && !strings.HasPrefix(trimmed, "["):
 		if fi, err := os.Stat(trimmed); err == nil && !fi.IsDir() {
 			if data, err := os.ReadFile(trimmed); err == nil {
 				trimmed = strings.TrimSpace(string(data))
@@ -30,7 +31,7 @@ func parseJSONValue(value string) (interface{}, bool) {
 
 	// 1. Direct JSON object
 	if strings.HasPrefix(trimmed, "{") && strings.HasSuffix(trimmed, "}") {
-		var obj map[string]interface{}
+		var obj map[string]any
 		if err := json.Unmarshal([]byte(trimmed), &obj); err == nil {
 			return obj, true
 		}
@@ -38,7 +39,7 @@ func parseJSONValue(value string) (interface{}, bool) {
 
 	// 2. Direct JSON array
 	if strings.HasPrefix(trimmed, "[") && strings.HasSuffix(trimmed, "]") {
-		var arr []interface{}
+		var arr []any
 		if err := json.Unmarshal([]byte(trimmed), &arr); err == nil {
 			return arr, true
 		}
@@ -47,7 +48,7 @@ func parseJSONValue(value string) (interface{}, bool) {
 	// 3. Wrapped in braces if braces were stripped
 	if strings.Contains(trimmed, ":") {
 		wrapped := "{" + trimmed + "}"
-		var obj map[string]interface{}
+		var obj map[string]any
 		if err := json.Unmarshal([]byte(wrapped), &obj); err == nil {
 			return obj, true
 		}
@@ -57,7 +58,7 @@ func parseJSONValue(value string) (interface{}, bool) {
 	if strings.Contains(trimmed, ":") {
 		fields := strings.Fields(trimmed)
 		if len(fields) > 0 {
-			obj := make(map[string]interface{})
+			obj := make(map[string]any)
 			allPairs := true
 			for _, field := range fields {
 				field = strings.Trim(field, "{}, ")
@@ -75,7 +76,7 @@ func parseJSONValue(value string) (interface{}, bool) {
 					allPairs = false
 					break
 				}
-				var parsedV interface{}
+				var parsedV any
 				if err := json.Unmarshal([]byte(v), &parsedV); err == nil {
 					obj[k] = parsedV
 				} else {
@@ -92,33 +93,33 @@ func parseJSONValue(value string) (interface{}, bool) {
 }
 
 // getNestedValue extracts a nested property using dot-separated path segments.
-func getNestedValue(data interface{}, path []string) (interface{}, bool) {
+func getNestedValue(data any, path []string) (any, bool) {
 	current := data
 	for _, segment := range path {
 		switch node := current.(type) {
-		case map[string]interface{}:
+		case map[string]any:
 			val, exists := node[segment]
 			if !exists {
 				return nil, false
 			}
 			current = val
-		case []interface{}:
+		case []any:
 			idx, err := strconv.Atoi(segment)
 			if err != nil || idx < 0 || idx >= len(node) {
 				return nil, false
 			}
 			current = node[idx]
 		case string:
-			var parsed interface{}
+			var parsed any
 			if err := json.Unmarshal([]byte(node), &parsed); err == nil {
 				switch parsedNode := parsed.(type) {
-				case map[string]interface{}:
+				case map[string]any:
 					val, exists := parsedNode[segment]
 					if !exists {
 						return nil, false
 					}
 					current = val
-				case []interface{}:
+				case []any:
 					idx, err := strconv.Atoi(segment)
 					if err != nil || idx < 0 || idx >= len(parsedNode) {
 						return nil, false
@@ -138,7 +139,7 @@ func getNestedValue(data interface{}, path []string) (interface{}, bool) {
 }
 
 // deleteNestedValue removes a nested property from a map structure.
-func deleteNestedValue(data map[string]interface{}, path []string) bool {
+func deleteNestedValue(data map[string]any, path []string) bool {
 	if len(path) == 0 {
 		return false
 	}
@@ -149,14 +150,14 @@ func deleteNestedValue(data map[string]interface{}, path []string) bool {
 		}
 		return false
 	}
-	if nextNode, ok := data[path[0]].(map[string]interface{}); ok {
+	if nextNode, ok := data[path[0]].(map[string]any); ok {
 		return deleteNestedValue(nextNode, path[1:])
 	}
 	return false
 }
 
 // fetchSecretData reads a secret from Vault and returns the unwrapped data map.
-func fetchSecretData(ctx context.Context, client *Client, path string) (map[string]interface{}, bool, bool, error) {
+func fetchSecretData(ctx context.Context, client *Client, path string) (map[string]any, bool, bool, error) {
 	normPath := NormalizePath(path)
 	secret, err := client.Logical().ReadWithContext(ctx, normPath)
 	if err != nil {
@@ -166,9 +167,12 @@ func fetchSecretData(ctx context.Context, client *Client, path string) (map[stri
 		return nil, false, false, nil
 	}
 
-	if kv2Data, ok := secret.Data["data"].(map[string]interface{}); ok {
-		return kv2Data, false, true, nil
-	} else if secret.Data["data"] == nil && secret.Data["metadata"] != nil {
+	switch {
+	case secret.Data["data"] != nil:
+		if kv2Data, ok := secret.Data["data"].(map[string]any); ok {
+			return kv2Data, false, true, nil
+		}
+	case secret.Data["metadata"] != nil:
 		return nil, true, true, nil
 	}
 	return secret.Data, false, true, nil
@@ -192,29 +196,30 @@ func CreateSecret(client *Client, secretPath string, value string, timeout time.
 		return
 	}
 
-	var payloadData map[string]interface{}
+	var payloadData map[string]any
 	jsonVal, isJSON := parseJSONValue(value)
 	displayVal := value
 
-	if isJSON {
-		if objMap, ok := jsonVal.(map[string]interface{}); ok {
+	switch {
+	case isJSON:
+		if objMap, ok := jsonVal.(map[string]any); ok {
 			payloadData = objMap
 			jsonBytes, _ := json.Marshal(objMap)
 			displayVal = string(jsonBytes)
 		} else {
-			payloadData = map[string]interface{}{
+			payloadData = map[string]any{
 				"value":      jsonVal,
 				"updated_at": time.Now().UTC().Format(time.RFC3339),
 			}
 		}
-	} else {
-		payloadData = map[string]interface{}{
+	default:
+		payloadData = map[string]any{
 			"value":      value,
 			"updated_at": time.Now().UTC().Format(time.RFC3339),
 		}
 	}
 
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"data": payloadData,
 	}
 
@@ -303,7 +308,7 @@ func ReadSecret(client *Client, secretPath string, timeout time.Duration, out *s
 		switch v := targetVal.(type) {
 		case string:
 			extracted = v
-		case map[string]interface{}, []interface{}:
+		case map[string]any, []any:
 			jsonBytes, err := json.Marshal(v)
 			if err == nil {
 				extracted = string(jsonBytes)
@@ -378,7 +383,7 @@ func collectPrefixGroups(ctx context.Context, client *Client, mount, relPath str
 	var directKeys []string
 	var subFolders []string
 
-	if keyList, ok := rawKeys.([]interface{}); ok {
+	if keyList, ok := rawKeys.([]any); ok {
 		for _, k := range keyList {
 			if s, ok := k.(string); ok {
 				if strings.HasSuffix(s, "/") {
@@ -486,14 +491,15 @@ func ListKeys(client *Client, prefix string, timeout time.Duration, verbose bool
 
 	// Case 2: Specific prefix provided -> report prefix and list keys under it
 	var vaultPath string
-	if strings.Contains(cleanPrefix, "/data/") {
+	switch {
+	case strings.Contains(cleanPrefix, "/data/"):
 		vaultPath = strings.Replace(cleanPrefix, "/data/", "/metadata/", 1)
-	} else if strings.HasPrefix(cleanPrefix, mount+"/metadata") {
+	case strings.HasPrefix(cleanPrefix, mount+"/metadata"):
 		vaultPath = cleanPrefix
-	} else if strings.HasPrefix(cleanPrefix, mount+"/") {
+	case strings.HasPrefix(cleanPrefix, mount+"/"):
 		sub := strings.TrimPrefix(cleanPrefix, mount+"/")
 		vaultPath = fmt.Sprintf("%s/metadata/%s", mount, sub)
-	} else {
+	default:
 		vaultPath = fmt.Sprintf("%s/metadata/%s", mount, cleanPrefix)
 	}
 
@@ -511,7 +517,7 @@ func ListKeys(client *Client, prefix string, timeout time.Duration, verbose bool
 	var keys []string
 	if secret != nil && secret.Data != nil {
 		if rawKeys, ok := secret.Data["keys"]; ok {
-			if keyList, ok := rawKeys.([]interface{}); ok {
+			if keyList, ok := rawKeys.([]any); ok {
 				for _, k := range keyList {
 					if s, ok := k.(string); ok {
 						keys = append(keys, s)
@@ -692,7 +698,7 @@ func DeleteSecret(client *Client, secretPath string, timeout time.Duration, verb
 						if verbose {
 							fmt.Printf("\n--- Deleting Property %s from %s ---\n", strings.Join(fieldSelector, "."), normCandidate)
 						}
-						payload := map[string]interface{}{
+						payload := map[string]any{
 							"data": cData,
 						}
 						_, err := client.Logical().WriteWithContext(ctx, normCandidate, payload)

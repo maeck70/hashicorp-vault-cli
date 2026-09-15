@@ -59,10 +59,11 @@ func CheckConnection(client *Client, timeout time.Duration, unsealKey string, ve
 	defer cancel()
 
 	health, err := client.Sys().HealthWithContext(ctx)
-	if err != nil {
+	switch {
+	case err != nil:
 		log.Printf("Warning: Failed to query Vault health: %v", err)
 		log.Println("Please verify that the Vault server is running and reachable.")
-	} else if verbose {
+	case verbose:
 		fmt.Println("\n--- Vault Server Status ---")
 		fmt.Printf("Initialized : %t\n", health.Initialized)
 		fmt.Printf("Sealed      : %t\n", health.Sealed)
@@ -74,7 +75,8 @@ func CheckConnection(client *Client, timeout time.Duration, unsealKey string, ve
 
 	// If Vault is sealed, attempt unsealing if key is available
 	if health != nil && health.Sealed {
-		if unsealKey != "" {
+		switch {
+		case unsealKey != "":
 			if verbose {
 				fmt.Println("\nVault is sealed. Attempting to unseal with provided key...")
 			}
@@ -86,7 +88,7 @@ func CheckConnection(client *Client, timeout time.Duration, unsealKey string, ve
 			if status.Sealed {
 				return
 			}
-		} else {
+		default:
 			fmt.Println("Note: Vault is currently sealed. Set VAULT_UNSEAL_KEY in .env or run with 'vault unseal' to unseal.")
 			return
 		}
@@ -94,11 +96,12 @@ func CheckConnection(client *Client, timeout time.Duration, unsealKey string, ve
 
 	// Verify token authentication details
 	tokenSecret, err := client.Auth().Token().LookupSelfWithContext(ctx)
-	if err != nil {
+	switch {
+	case err != nil:
 		if verbose {
 			log.Printf("Warning: Failed to verify token: %v", err)
 		}
-	} else if verbose && tokenSecret != nil && tokenSecret.Data != nil {
+	case verbose && tokenSecret != nil && tokenSecret.Data != nil:
 		fmt.Println("\n--- Token Details ---")
 		if displayName, ok := tokenSecret.Data["display_name"].(string); ok {
 			fmt.Printf("Display Name: %s\n", displayName)

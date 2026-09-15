@@ -10,7 +10,7 @@ import (
 
 	"github.com/joho/godotenv"
 
-	"hashicorp-play/pkg/vault"
+	"github.com/maeck70/hashicorp-vault-cli/pkg/vault"
 )
 
 const VERSION = "0.5.0"
@@ -46,33 +46,28 @@ func main() {
 	}
 
 	rawArgs := os.Args[1:]
-	for i := 0; i < len(rawArgs); i++ {
+	var i int
+	for i < len(rawArgs) {
 		arg := rawArgs[i]
 
-		if arg == "-V" || arg == "--V" || arg == "-verbose" || arg == "--verbose" {
+		switch arg {
+		case "-V", "--V", "-verbose", "--verbose":
 			isVerbose = true
 		}
 
-		if strings.HasPrefix(arg, "-") && strings.Contains(arg, "=") {
+		switch {
+		case strings.HasPrefix(arg, "-") && strings.Contains(arg, "="), boolFlags[arg]:
 			flagArgs = append(flagArgs, arg)
-			continue
-		}
-
-		if boolFlags[arg] {
-			flagArgs = append(flagArgs, arg)
-			continue
-		}
-
-		if valueFlags[arg] {
+		case valueFlags[arg]:
 			flagArgs = append(flagArgs, arg)
 			if i+1 < len(rawArgs) {
 				i++
 				flagArgs = append(flagArgs, rawArgs[i])
 			}
-			continue
+		default:
+			cmdArgs = append(cmdArgs, arg)
 		}
-
-		cmdArgs = append(cmdArgs, arg)
+		i++
 	}
 
 	// 1. Define command-line flags
@@ -226,24 +221,25 @@ func main() {
 	var key string
 	var value string
 
-	if *writeFlag != "" {
+	switch {
+	case *writeFlag != "":
 		command = "write"
 		key = *writeFlag
 		if fs.NArg() > 0 {
 			value = strings.Join(fs.Args(), " ")
 		}
-	} else if *readFlag != "" {
+	case *readFlag != "":
 		command = "read"
 		key = *readFlag
-	} else if *deleteFlag != "" {
+	case *deleteFlag != "":
 		command = "delete"
 		key = *deleteFlag
-	} else if *listFlag {
+	case *listFlag:
 		command = "list"
 		if fs.NArg() > 0 {
 			key = fs.Arg(0)
 		}
-	} else if len(args) > 0 {
+	case len(args) > 0:
 		subcmd := strings.ToLower(args[0])
 		switch subcmd {
 		case "version":
@@ -351,9 +347,10 @@ func main() {
 		// Handle full prefix deletion if requested
 		if *recursiveFlag || strings.HasSuffix(key, "/") || key == "/" || key == "*" || key == "all" {
 			targetPrefix := key
-			if targetPrefix == "/" || targetPrefix == "*" || targetPrefix == "all" || targetPrefix == "" {
+			switch {
+			case targetPrefix == "/" || targetPrefix == "*" || targetPrefix == "all" || targetPrefix == "":
 				targetPrefix = prefix
-			} else if prefix != "" && targetPrefix != prefix && !strings.HasPrefix(targetPrefix, prefix+"/") {
+			case prefix != "" && targetPrefix != prefix && !strings.HasPrefix(targetPrefix, prefix+"/"):
 				// If targetPrefix does not already exist at the mount root, resolve under active prefix
 				if !vault.PrefixExists(client, targetPrefix) {
 					targetPrefix = vault.ResolveKey(prefix, targetPrefix)
@@ -378,14 +375,17 @@ func main() {
 		}
 
 	case "list":
-		if key == "" && !prefixExplicit {
+		switch {
+		case key == "" && !prefixExplicit:
 			key = prefix
-		} else if prefixExplicit && key == "" {
+		case prefixExplicit && key == "":
 			key = ""
 		}
-		if key == "/" || key == "all" || key == "*" {
+
+		switch {
+		case key == "/" || key == "all" || key == "*":
 			key = ""
-		} else if key != "" && prefix != "" && key != prefix && !strings.HasPrefix(key, prefix+"/") {
+		case key != "" && prefix != "" && key != prefix && !strings.HasPrefix(key, prefix+"/"):
 			if !vault.PrefixExists(client, key) {
 				key = vault.ResolveKey(prefix, key)
 			}

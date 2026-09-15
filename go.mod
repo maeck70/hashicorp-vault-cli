@@ -1,4 +1,4 @@
-module hashicorp-play
+module github.com/maeck70/hashicorp-vault-cli
 
 go 1.27.1
 
